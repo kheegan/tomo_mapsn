@@ -1,0 +1,8 @@
+IDL code for carrying out analytic estimates of IGM tomography map S/N as described in Section 3.3. of Lee et al 2014, ApJ, 788, 49L
+
+plot_texp_fixed_snr_theory_tmt.pro makes a figure that illustrates how to do this code (first part simply plots mock reconstruction results from sims, but second part loops through the analytic simulation for various scales. This is actually simply a version of Fig 9 in Lee et al with the t_exp rescaled for a 30m primary.
+
+To calculate analytic S/N_map for a single case, is simply:
+> print, sqrt(sigmaf_3d_theory([params])/residvar_notwiener([params]))
+
+This code uses the Goddard IDL and IDLUTILS packages, but should otherwise be self-contained.

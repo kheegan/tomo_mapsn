@@ -17,26 +17,37 @@ end
 
 function resid_k, k, mu, z=z1, t_exp=t_exp, mag_lim=mag_lim, $
                   bias=bias, beta=beta,Lperp=Lperp, Lpar=Lpar, $
-                  sigf_sq = sigf_sq, mag_50=mag_50
+                  sigf_sq = sigf_sq, mag_50=mag_50, nlos_in=nlos_in, $
+                  snr_in=snr_in
 ; Expression for residual of Wiener filter, in k-space
 ;
 ; k is in units of h^-1 Mpc, but k_par is converted to s km^-1 for
 ; input to pk1d_forest/
 ;
 ; mag_50 is the magnitude above which nlos gets cut in half
+;
+; Alternative way to call this function is with nlos_in and snr_in,
+; which are vectors with # of sightlines/deg^2 for different S/N per
+; angstrom 
 
-if not keyword_set(t_exp) then t_exp = 4.
+if not keyword_set(t_exp) and not keyword_set(nlos_in) then t_exp = 4.
 if not keyword_set(z1) then z=2.25 else z=z1
-if not keyword_set(mag_lim) then $
+if not keyword_set(mag_lim) and keyword_set(t_exp) then $
    mag_lim = 1.25*alog10(t_exp/16.) + 24.75
 
 k_par = (mu * k)/(94.d * sqrt(1.d + z) / sqrt(3.25d))
 
 pk3d = pk3d_forest(k, mu, z=z, bias=bias, beta=beta)
-neff = neff_weighted(abs(t_exp), mag_lim=mag_lim, z=z, k_par=k_par, $
+if keyword_set(nlos_in) AND keyword_set(snr_in) then $
+   neff = neff_weighted(bias=bias, beta=beta, z=z, k_par=k_par, $
+                        nlos_total=nlos_total, $
+                        nlos_in=nlos_in,snr_in=snr_in) else $
+      neff = neff_weighted(abs(t_exp), mag_lim=mag_lim, z=z, k_par=k_par, $
                      bias=bias, beta=beta,nlos_total=nlos_total, $
                     mag_50=mag_50)
-if t_exp LT 0 then neff = nlos_total /(comdis(z, 0.3, 0.7)*2998./!RADEG)^2
+if ~keyword_set(nlos_in) then begin
+   if t_exp LT 0 then neff = nlos_total /(comdis(z, 0.3, 0.7)*2998./!RADEG)^2
+endif
 pknoise = pk1d_forest(k_par,z=z) / (94.d * sqrt(1.d + z) / sqrt(3.25d)) $
           /  neff
 
@@ -53,7 +64,12 @@ return, term1+term2
 end
 
 function residvar_notwiener, R, z=z1, t=t_exp, mag_lim=mag_lim, bias=bias, $
-                          beta=beta, Lperp=Lperp, Lpar=Lpar, mag_50=mag_50
+                             beta=beta, Lperp=Lperp, Lpar=Lpar, mag_50=mag_50, $
+                             nlos_in=nlos_in, snr_in=snr_in
+;
+; Lperp needs to be specified explicitly if using nlos_in and snr_in
+; inputs 
+;
 ;R = 2. ; Mpc/h
 if not keyword_set(z1) then z = 2.25 else z=z1
 
@@ -76,7 +92,8 @@ for ik=0, ngrid_k-1 do begin
 
    integrand_mu = resid_k(k_tmp, mugrid, t_exp=t_exp, mag_lim=mag_lim, $
                           bias=bias, beta=beta, Lperp=Lperp, Lpar=Lpar, $
-                          sigf_sq=sigf_sq,mag_50=mag_50)*  k_tmp^2 * $
+                          sigf_sq=sigf_sq,mag_50=mag_50,nlos_in=nlos_in, $
+                          snr_in=snr_in)*  k_tmp^2 * $
                   (exp(-0.5d *(k_tmp * R)^2))^2
                   ;(3. * (sin(k_tmp*R) - k_tmp*R* cos(k_tmp*R)) / $
                   ; (k_tmp*R)^3)^2

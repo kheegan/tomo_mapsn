@@ -23,6 +23,10 @@
 ; OPTIONAL INPUTS:
 ;    mag_50    - Below this magnitude, take n_los->0.5n_los. mag_50 <
 ;                mag_lim  
+;    nlos_in   - Alternative input: vector of sightlines/deg^2 (associated
+;                with snr_in vector)
+;    snr_in    - Vector of pixel snr (per angstrom)
+;
 ;
 ; OPTIONAL OUTPUTS:
 ;    nlos_total- Areal density of sightlines per sq deg
@@ -39,13 +43,13 @@ end
 
 function neff_weighted, t_exp, mag_lim=mag_lim, k_par=k_par, z=z1, $
                         nlos_total=nlos_total, bias=bias,beta=beta, $
-                        mag_50=mag_50
+                        mag_50=mag_50, nlos_in=nlos_in, snr_in=snr_in
 
 common neff_block, snr, nlos, mag,t_exp_block, mag_block
 
 if not keyword_set(z1) then z = 2.25 else z = z1
-if not keyword_set(t_exp) then t_exp = 4.
-if not keyword_set(mag_lim) then mag_lim = 1.25*alog10(texp / 16.)+ 24.75
+if not keyword_set(t_exp) and not keyword_set(nlos_in) then t_exp = 4.
+if not keyword_set(mag_lim) and not keyword_set(nlos_in) then mag_lim = 1.25*alog10(texp / 16.)+ 24.75
 if not keyword_set(k_par) then pk_los = 2.8 else $ ; P_F(k) at k=190 s/km 
    pk_los = pk1d_forest(k_par,z=z,bias=bias, beta=beta)
 
@@ -54,13 +58,17 @@ pk_los = pk_los / (94.* sqrt((1.+z)/3.25))
 if not keyword_set(t_exp_block) then t_exp_block = -1
 if not keyword_set(mag_block) then mag_block = -1
 
-
-if (t_exp_block NE t_exp) OR (mag_lim NE mag_block) then begin
-   gen_snrlist_magcut, 2.35, 2.7, mag_lim, 1., snr=snr, nlos_out=nlos, $
-                       dv_pix=76.,/silent, t_exp=t_exp,mag=mag;, create_block=mag_lim
-   t_exp_block = t_exp
-   mag_block = mag_lim
-endif
+if keyword_set(nlos_in) AND keyword_set(snr_in) then begin
+   nlos = nlos_in
+   snr  = snr_in
+endif else begin
+   if (t_exp_block NE t_exp) OR (mag_lim NE mag_block) then begin
+      gen_snrlist_magcut, 2.35, 2.7, mag_lim, 1., snr=snr, nlos_out=nlos, $
+                          dv_pix=76.,/silent, t_exp=t_exp,mag=mag ;, create_block=mag_lim
+      t_exp_block = t_exp
+      mag_block = mag_lim
+   endif
+endelse
 
 if keyword_set(mag_50) then nlos[where(mag GE mag_50)] = 0.5*nlos[where(mag GE mag_50)]
 
